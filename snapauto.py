@@ -16,10 +16,139 @@ def filter_instances(project):
 
     return instances
 
-
 @click.group()
+def cli():
+    "Snapauto manages automatic snapshots"
+
+@cli.group('snapshots')
+def snapshots():
+    "Commands for Snapshots"
+
+@snapshots.command('list')
+@click.option('--project',default=None,
+        help="Only Snapshots for project (tag Project:<name>)")
+
+    # @click.option('--state', default=None,
+    #     help="Only Instances with state (tag state:<name>)")
+
+def list_snapshots(project):
+    "List EC2 Volume snapshots"
+    instances=filter_instances(project)
+
+    cnt = 1
+    for i in instances:
+        tags = {t['Key']: t['Value'] for t in i.tags or []}
+        for v in i.volumes.all():
+            for s in v.snapshots.all():
+                if cnt == 1:
+                    print('| '.join((
+                        "Snapshot id",
+                        "Volume",
+                        "Instance",
+                        "Instance State",
+                        "Volume State",
+                        "Snapshot State",
+                        "Progress",
+                        "Start Time",
+                        "Tag")))
+                    print("|".join((
+                        s.id,
+                        v.id,
+                        i.id,
+                        i.state['Name'],
+                        v.state,
+                        s.state,
+                        s.progress,
+                        s.start_time.strftime("%c"),
+                        tags.get('Project','<No Project>'))))
+                    cnt = cnt + 1
+
+                else:
+                    cnt = cnt + 1
+                    print("|".join((
+                        s.id,
+                        v.id,
+                        i.id,
+                        i.state['Name'],
+                        v.state,
+                        s.state,
+                        s.progress,
+                        s.start_time.strftime("%c"),
+                        tags.get('Project','<No Project>'))))
+
+    return s
+
+@cli.group('volumes')
+def volumes():
+    "Commands for volumes"
+
+@volumes.command('list')
+@click.option('--project',default=None,
+        help="Only Volumes for project (tag Project:<name>)")
+
+    # @click.option('--state', default=None,
+    #     help="Only Instances with state (tag state:<name>)")
+
+def list_volumes(project):
+    "List EC2 Volumes"
+    instances=filter_instances(project)
+
+    cnt = 1
+    for i in instances:
+        tags = {t['Key']: t['Value'] for t in i.tags or []}
+        for v in i.volumes.all():
+            if cnt == 1:
+                print('| '.join((
+                    "Volume",
+                    "Instance",
+                    "State",
+                    "Size",
+                    "Encrypted",
+                    "Tag")))
+                print("|".join((
+                       v.id,
+                       i.id,
+                       v.state,
+                       str(v.size) + "GiB",
+                       v.encrypted and "Encrypted" or "Not Encrypted",
+                       tags.get('Project','<No Project>'))))
+
+                cnt = cnt + 1
+
+            else:
+                cnt = cnt + 1
+                print("|".join((
+                       v.id,
+                       i.id,
+                       v.state,
+                       str(v.size) + "GiB",
+                       v.encrypted and "Encrypted" or "Not Encrypted",
+                       tags.get('Project','<No Project>'))))
+    return v
+
+
+@cli.group('instances')
 def instances():
-            "Commands for instances"
+    "Commands for instances"
+
+@instances.command('snapshot',
+    help="Create Snapshots of all volumes")
+
+@click.option('--project',default=None,
+        help="Only Instances for project (tag Project:<name>)")
+
+def create_snapshots(project):
+    "Create snapshots for EC2 instances"
+
+    instances=filter_instances(project)
+    for i in instances:
+        i.stop()
+        # i.wait_until_stopped()
+        for v in i.volumes.all():
+            print("Creating snapshot of {0}".format(v.id))
+            v.create_snapshot(Description="Created by Snapshot Auto Program")
+
+    return
 
 @instances.command('list')
 @click.option('--project',default=None,
@@ -115,4 +244,4 @@ def start_instances(project):
     return
 
 if __name__ == '__main__':
-    instances()
+    cli()
