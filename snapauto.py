@@ -32,7 +32,11 @@ def snapshots():
     # @click.option('--state', default=None,
     #     help="Only Instances with state (tag state:<name>)")
 
-def list_snapshots(project):
+@click.option('--all','list_all',default=False, is_flag=True,
+        help="Lists all snapshots for each volume, not just most recent for project (tag Project:<name>)")
+
+
+def list_snapshots(project, list_all):
     "List EC2 Volume snapshots"
     instances=filter_instances(project)
 
@@ -62,7 +66,10 @@ def list_snapshots(project):
                         s.progress,
                         s.start_time.strftime("%c"),
                         tags.get('Project','<No Project>'))))
+
                     cnt = cnt + 1
+                    if s.state == 'completed' and not list_all: break
+
 
                 else:
                     cnt = cnt + 1
@@ -76,6 +83,8 @@ def list_snapshots(project):
                         s.progress,
                         s.start_time.strftime("%c"),
                         tags.get('Project','<No Project>'))))
+
+                    if s.state == 'completed' and not list_all: break
 
     return s
 
